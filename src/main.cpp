@@ -15,24 +15,27 @@ const int WINDOW_HEIGHT = 450;
 
 struct Player
 {
-	Vector2 playerPos{};
-	Vector2 playerDir{};
+	Vector2 playerPos;
+	Vector2 playerDir;
 	int playerWidth;
 	int playerHeight;
+
+	Texture2D playerTexture;
+};
+
+struct Background
+{
+	Texture2D bgTexture;
+	Vector2 bgPos;
+	Rectangle bgRect;
+	float bgScale;
 };
 
 struct GameData
 {
-	Player player
-	{ 
-		{
-			WINDOW_WIDTH / 2.0f,
-			WINDOW_HEIGHT / 2.0f
-		},
-		{},
-		100,
-		100
-	};
+	Player player;
+	Background background;
+	
 };
 
 
@@ -41,6 +44,7 @@ int main(void)
 
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "raylib [core] example - basic window");
+
 
 #pragma region imgui
 	rlImGuiSetup(true);
@@ -70,7 +74,18 @@ int main(void)
 #pragma endregion
 
 	GameData gameData;
+#pragma region Player Initialization
+	gameData.player = { { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f }, {}, 100, 100 };
 
+#pragma endregion
+
+
+
+#pragma region Background Initialization
+	gameData.background.bgTexture = LoadTexture(RESOURCES_PATH "Backgrounds/darkPurple.png");
+	gameData.background.bgPos = { 0,0 };
+	gameData.background.bgScale = 2;
+#pragma endregion
 
 
 	while (!WindowShouldClose())
@@ -111,7 +126,8 @@ int main(void)
 		
 #pragma endregion
 
-
+		//DrawTextureV(gameData.background.bgTexture, gameData.background.bgPos, WHITE);
+		DrawTextureEx(gameData.background.bgTexture, gameData.background.bgPos, 0, gameData.background.bgScale, WHITE);
 		//DrawCircle(gameData.player.playerPos.x, gameData.player.playerPos.y, 50.f, RED);
 		DrawRectangle(gameData.player.playerPos.x, gameData.player.playerPos.y, gameData.player.playerWidth, gameData.player.playerHeight, GREEN);
 
@@ -134,7 +150,7 @@ int main(void)
 #pragma endregion
 
 
-
+	UnloadTexture(gameData.background.bgTexture);
 	CloseWindow();
 
 	return 0;
