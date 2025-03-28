@@ -19,7 +19,7 @@ struct Player
 	Vector2 playerDir;
 	int playerWidth;
 	int playerHeight;
-
+	float playerSpeed;
 	Texture2D playerTexture;
 };
 
@@ -75,10 +75,21 @@ int main(void)
 
 	GameData gameData;
 #pragma region Player Initialization
-	gameData.player = { { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f }, {}, 100, 100 };
+	gameData.player;
+	gameData.player.playerPos = { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f };
+	gameData.player.playerHeight = 100;
+	gameData.player.playerWidth = 100;
+	gameData.player.playerSpeed = 500;
 
 #pragma endregion
 
+#pragma region Camera
+	Camera2D camera;
+	camera.offset = { WINDOW_WIDTH / 2.f, WINDOW_HEIGHT / 2.f };
+	camera.target = { gameData.player.playerPos.x + 50, gameData.player.playerPos.y + 50 };
+	camera.rotation = 0.f;
+	camera.zoom = 1.0f;
+#pragma endregion
 
 
 #pragma region Background Initialization
@@ -92,7 +103,9 @@ int main(void)
 	{
 		BeginDrawing();
 		ClearBackground(RAYWHITE);
+		BeginMode2D(camera);
 
+		float deltaTime = GetFrameTime();
 
 #pragma region imgui
 		rlImGuiBegin();
@@ -103,33 +116,83 @@ int main(void)
 		ImGui::PopStyleColor(2);
 #pragma endregion
 
-		
-
-#pragma region Player Movement
-		if (IsKeyDown(KEY_A))
+		if (IsWindowResized())
 		{
-			gameData.player.playerPos.x -= 1;
-		}
-		if (IsKeyDown(KEY_D))
-		{
-			gameData.player.playerPos.x += 1;
-		}
-		if (IsKeyDown(KEY_W))
-		{
-			gameData.player.playerPos.y -= 1;
-		}
-		if (IsKeyDown(KEY_S))
-		{
-			gameData.player.playerPos.y += 1;
+			gameData.player.playerPos = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
 		}
 
+
+
+#pragma region Camera Following
+
+		camera.offset = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
+		camera.target = { gameData.player.playerPos.x + 50, gameData.player.playerPos.y + 50 };
+
+#pragma endregion
+
+
+#pragma region Inf Background
+
+		// Calculate background tile size (using scaled texture size)
+		float backgroundSize = gameData.background.bgTexture.height * gameData.background.bgScale;
+
+
+		// Calculate tile indices based on camera target
+		int tileX = static_cast<int>(std::floor(camera.target.x / backgroundSize));
+		int tileY = static_cast<int>(std::floor(camera.target.y / backgroundSize));
+
+		// Determine how many tiles to render based on screen size
+		int tilesX = static_cast<int>(std::ceil(GetScreenWidth() / backgroundSize)) + 2;
+		int tilesY = static_cast<int>(std::ceil(GetScreenHeight() / backgroundSize)) + 2;
+
+		// Render background tiles
+		for (int y = -tilesY / 2; y <= tilesY / 2; y++) 
+		{
+			for (int x = -tilesX / 2; x <= tilesX / 2; x++) 
+			{
+				Vector2 tilePos = 
+				{
+					(tileX + x) * backgroundSize,
+					(tileY + y) * backgroundSize
+				};
+				DrawTextureEx(gameData.background.bgTexture, tilePos, 0, gameData.background.bgScale, RED);
+			}
+		}
 		
 #pragma endregion
 
-		//DrawTextureV(gameData.background.bgTexture, gameData.background.bgPos, WHITE);
-		DrawTextureEx(gameData.background.bgTexture, gameData.background.bgPos, 0, gameData.background.bgScale, WHITE);
-		//DrawCircle(gameData.player.playerPos.x, gameData.player.playerPos.y, 50.f, RED);
+#pragma region Player Movement
+
+		Vector2 movement = {};
+
+		if (IsKeyDown(KEY_A))
+		{
+			movement.x -= 1;
+		}
+		if (IsKeyDown(KEY_D))
+		{
+			movement.x += 1;
+		}
+		if (IsKeyDown(KEY_W))
+		{
+			movement.y -= 1;
+		}
+		if (IsKeyDown(KEY_S))
+		{
+			movement.y += 1;
+		}
+
+		if (movement.x != 0 || movement.y != 0) 
+		{
+			movement = Vector2Normalize(movement);
+			movement.x *= deltaTime * gameData.player.playerSpeed;
+			movement.y *= deltaTime * gameData.player.playerSpeed;
+
+			gameData.player.playerPos.x += movement.x;
+			gameData.player.playerPos.y += movement.y;
+		}
 		DrawRectangle(gameData.player.playerPos.x, gameData.player.playerPos.y, gameData.player.playerWidth, gameData.player.playerHeight, GREEN);
+#pragma endregion
 
 #pragma region imgui
 		rlImGuiEnd();
@@ -140,7 +203,7 @@ int main(void)
 			ImGui::RenderPlatformWindowsDefault();
 		}
 #pragma endregion
-
+		EndMode2D();
 		EndDrawing();
 	}
 
