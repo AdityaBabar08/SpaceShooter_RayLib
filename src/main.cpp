@@ -10,8 +10,8 @@
 #pragma endregion
 
 
-const int WINDOW_WIDTH = 800;
-const int WINDOW_HEIGHT = 450;
+const int WINDOW_WIDTH = 1920;
+const int WINDOW_HEIGHT = 1080;
 
 struct Player
 {
@@ -21,6 +21,9 @@ struct Player
 	int playerHeight;
 	float playerSpeed;
 	Texture2D playerTexture;
+	Rectangle playerSource;
+	Rectangle playerDes;
+	Vector2 playerOrigin;
 };
 
 struct Background
@@ -73,18 +76,24 @@ int main(void)
 
 #pragma endregion
 
-	GameData gameData;
+	GameData gameData{};
 #pragma region Player Initialization
-	gameData.player;
+	gameData.player.playerTexture = LoadTexture(RESOURCES_PATH "playerShip3_red.png");
 	gameData.player.playerPos = { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f };
-	gameData.player.playerHeight = 100;
-	gameData.player.playerWidth = 100;
+	gameData.player.playerHeight = gameData.player.playerTexture.height;
+	gameData.player.playerWidth = gameData.player.playerTexture.width;
 	gameData.player.playerSpeed = 500;
-
+	gameData.player.playerSource = {
+		0,
+		0,
+		(float)gameData.player.playerWidth,
+		(float)gameData.player.playerHeight
+	};
+	gameData.player.playerOrigin = { gameData.player.playerWidth / 2.f, gameData.player.playerHeight / 2.f };
 #pragma endregion
 
 #pragma region Camera
-	Camera2D camera;
+	Camera2D camera{};
 	camera.offset = { WINDOW_WIDTH / 2.f, WINDOW_HEIGHT / 2.f };
 	camera.target = { gameData.player.playerPos.x + 50, gameData.player.playerPos.y + 50 };
 	camera.rotation = 0.f;
@@ -118,7 +127,10 @@ int main(void)
 
 		if (IsWindowResized())
 		{
-			gameData.player.playerPos = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
+			gameData.player.playerPos = { 
+				GetScreenWidth() / 2.0f - gameData.player.playerWidth / 2.f, 
+				GetScreenHeight() / 2.0f - gameData.player.playerHeight / 2.f 
+			};
 		}
 
 
@@ -126,7 +138,10 @@ int main(void)
 #pragma region Camera Following
 
 		camera.offset = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
-		camera.target = { gameData.player.playerPos.x + 50, gameData.player.playerPos.y + 50 };
+		camera.target = { 
+			gameData.player.playerPos.x + gameData.player.playerWidth / 2.f, 
+			gameData.player.playerPos.y + gameData.player.playerHeight / 2.f 
+		};
 
 #pragma endregion
 
@@ -191,7 +206,44 @@ int main(void)
 			gameData.player.playerPos.x += movement.x;
 			gameData.player.playerPos.y += movement.y;
 		}
-		DrawRectangle(gameData.player.playerPos.x, gameData.player.playerPos.y, gameData.player.playerWidth, gameData.player.playerHeight, GREEN);
+
+		
+		Vector2 mouseScreenPos = GetMousePosition();
+		Vector2 mouseWorldPos = GetScreenToWorld2D(mouseScreenPos, camera);
+		Vector2 mouseDir = Vector2Subtract(mouseWorldPos, gameData.player.playerPos);
+
+		if (mouseDir.x == 0 && mouseDir.y == 0) {
+			mouseDir = { 1, 0 };
+		}
+		else 
+		{
+			mouseDir = Vector2Normalize(mouseDir);
+		}
+
+		float playerRotation = std::atan2(mouseDir.y, mouseDir.x);
+		playerRotation = playerRotation * (180.0f / 3.1415926535f);
+
+		
+		gameData.player.playerDes = {
+			gameData.player.playerPos.x + gameData.player.playerWidth / 2.f,
+			gameData.player.playerPos.y + gameData.player.playerHeight / 2.f,
+			(float)gameData.player.playerWidth,
+			(float)gameData.player.playerHeight
+		};
+
+		DrawTexturePro(
+			gameData.player.playerTexture, 
+			gameData.player.playerSource, 
+			gameData.player.playerDes, 
+			gameData.player.playerOrigin, 
+			playerRotation + 90.f, 
+			WHITE
+		);
+		//DrawRectangleLines(gameData.player.playerPos.x, gameData.player.playerPos.y, gameData.player.playerWidth, gameData.player.playerHeight, WHITE);
+		//float screenHeight = GetScreenHeight();
+		//float screenWidth = GetScreenWidth();
+		//DrawLine((int)camera.target.x, -screenHeight * 10, (int)camera.target.x, screenHeight * 10, GREEN);
+		//DrawLine(-screenWidth * 10, (int)camera.target.y, screenWidth * 10, (int)camera.target.y, GREEN);
 #pragma endregion
 
 #pragma region imgui
@@ -212,7 +264,7 @@ int main(void)
 	rlImGuiShutdown();
 #pragma endregion
 
-
+	UnloadTexture(gameData.player.playerTexture);
 	UnloadTexture(gameData.background.bgTexture);
 	CloseWindow();
 
