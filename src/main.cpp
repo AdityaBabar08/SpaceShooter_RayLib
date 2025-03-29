@@ -10,8 +10,8 @@
 #pragma endregion
 
 
-const int WINDOW_WIDTH = 1920;
-const int WINDOW_HEIGHT = 1080;
+const int WINDOW_WIDTH = 1280;
+const int WINDOW_HEIGHT = 720;
 
 struct Player
 {
@@ -46,6 +46,7 @@ int main(void)
 {
 
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+	//SetConfigFlags(FLAG_FULLSCREEN_MODE);
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "raylib [core] example - basic window");
 
 
@@ -77,6 +78,7 @@ int main(void)
 #pragma endregion
 
 	GameData gameData{};
+
 #pragma region Player Initialization
 	gameData.player.playerTexture = LoadTexture(RESOURCES_PATH "playerShip3_red.png");
 	gameData.player.playerPos = { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f };
@@ -132,18 +134,6 @@ int main(void)
 				GetScreenHeight() / 2.0f - gameData.player.playerHeight / 2.f 
 			};
 		}
-
-
-
-#pragma region Camera Following
-
-		camera.offset = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
-		camera.target = { 
-			gameData.player.playerPos.x + gameData.player.playerWidth / 2.f, 
-			gameData.player.playerPos.y + gameData.player.playerHeight / 2.f 
-		};
-
-#pragma endregion
 
 
 #pragma region Inf Background
@@ -244,6 +234,16 @@ int main(void)
 		//float screenWidth = GetScreenWidth();
 		//DrawLine((int)camera.target.x, -screenHeight * 10, (int)camera.target.x, screenHeight * 10, GREEN);
 		//DrawLine(-screenWidth * 10, (int)camera.target.y, screenWidth * 10, (int)camera.target.y, GREEN);
+#pragma endregion
+
+#pragma region Camera Following
+
+		camera.offset = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
+		camera.target = {
+			gameData.player.playerPos.x + gameData.player.playerWidth / 2.f,
+			gameData.player.playerPos.y + gameData.player.playerHeight / 2.f
+		};
+
 #pragma endregion
 
 #pragma region imgui
