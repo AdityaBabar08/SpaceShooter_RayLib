@@ -2,6 +2,8 @@
 #include "raylib.h"
 #include "raymath.h"
 #include <iostream>
+#include <vector>
+
 
 #pragma region imgui
 #include "imgui.h"
@@ -34,11 +36,19 @@ struct Background
 	float bgScale;
 };
 
+struct Bullet
+{
+	Vector2 bulletPos;
+	Vector2 bulletDir;
+
+};
+
 struct GameData
 {
 	Player player;
 	Background background;
 	
+	std::vector<Bullet> bullets;
 };
 
 
@@ -109,6 +119,7 @@ int main(void)
 	gameData.background.bgScale = 2;
 #pragma endregion
 
+	Texture2D bulletTexture = LoadTexture(RESOURCES_PATH "laserBlue02.png");
 
 	while (!WindowShouldClose())
 	{
@@ -134,6 +145,22 @@ int main(void)
 				GetScreenHeight() / 2.0f - gameData.player.playerHeight / 2.f 
 			};
 		}
+
+#pragma region Handle Mouse
+		Vector2 mouseScreenPos = GetMousePosition();
+		Vector2 mouseWorldPos = GetScreenToWorld2D(mouseScreenPos, camera);
+		Vector2 mouseDir = Vector2Subtract(mouseWorldPos, gameData.player.playerPos);
+
+		if (mouseDir.x == 0 && mouseDir.y == 0) {
+			mouseDir = { 1, 0 };
+		}
+		else
+		{
+			mouseDir = Vector2Normalize(mouseDir);
+		}
+#pragma endregion
+
+
 
 
 #pragma region Inf Background
@@ -164,6 +191,59 @@ int main(void)
 			}
 		}
 		
+#pragma endregion
+
+
+#pragma region Bullets
+
+
+		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+		{
+			Bullet b{};
+
+			b.bulletPos = {
+				gameData.player.playerPos.x + gameData.player.playerWidth / 2.f,
+				gameData.player.playerPos.y + gameData.player.playerHeight / 2.f
+			};
+			b.bulletDir = mouseDir;
+
+			gameData.bullets.push_back(b);
+		}
+
+		for (const Bullet& b : gameData.bullets)
+		{
+			float bulletRotation = std::atan2(mouseDir.y, mouseDir.x);
+			bulletRotation = bulletRotation * (180.0f / 3.1415926535f);
+			//DrawTextureEx(bulletTexture, b.bulletPos, 0, 1, WHITE);
+			DrawTexturePro(
+					bulletTexture,
+					{
+						0,0,
+						(float)bulletTexture.width,
+						(float)bulletTexture.height
+					},
+					{
+						b.bulletPos.x,
+						b.bulletPos.y,
+						(float)bulletTexture.width,
+						(float)bulletTexture.height
+					},
+					{
+						(float)bulletTexture.width / 2.f,
+						(float)bulletTexture.height / 2.f
+					},
+					bulletRotation,
+					WHITE
+				);
+		}
+		for (Bullet& b : gameData.bullets)
+		{
+
+			float bulletSpeed = 800.0f;
+			b.bulletPos.x += b.bulletDir.x * bulletSpeed * deltaTime;
+			b.bulletPos.y += b.bulletDir.y * bulletSpeed * deltaTime;
+		}
+
 #pragma endregion
 
 #pragma region Player Movement
@@ -197,19 +277,6 @@ int main(void)
 			gameData.player.playerPos.y += movement.y;
 		}
 
-		
-		Vector2 mouseScreenPos = GetMousePosition();
-		Vector2 mouseWorldPos = GetScreenToWorld2D(mouseScreenPos, camera);
-		Vector2 mouseDir = Vector2Subtract(mouseWorldPos, gameData.player.playerPos);
-
-		if (mouseDir.x == 0 && mouseDir.y == 0) {
-			mouseDir = { 1, 0 };
-		}
-		else 
-		{
-			mouseDir = Vector2Normalize(mouseDir);
-		}
-
 		float playerRotation = std::atan2(mouseDir.y, mouseDir.x);
 		playerRotation = playerRotation * (180.0f / 3.1415926535f);
 
@@ -235,6 +302,7 @@ int main(void)
 		//DrawLine((int)camera.target.x, -screenHeight * 10, (int)camera.target.x, screenHeight * 10, GREEN);
 		//DrawLine(-screenWidth * 10, (int)camera.target.y, screenWidth * 10, (int)camera.target.y, GREEN);
 #pragma endregion
+
 
 #pragma region Camera Following
 
@@ -264,7 +332,9 @@ int main(void)
 	rlImGuiShutdown();
 #pragma endregion
 
+
 	UnloadTexture(gameData.player.playerTexture);
+	UnloadTexture(bulletTexture);
 	UnloadTexture(gameData.background.bgTexture);
 	CloseWindow();
 
