@@ -40,14 +40,13 @@ struct Bullet
 {
 	Vector2 bulletPos;
 	Vector2 bulletDir;
-
 };
 
 struct GameData
 {
 	Player player;
 	Background background;
-	
+
 	std::vector<Bullet> bullets;
 };
 
@@ -104,15 +103,6 @@ int main(void)
 	gameData.player.playerOrigin = { gameData.player.playerWidth / 2.f, gameData.player.playerHeight / 2.f };
 #pragma endregion
 
-#pragma region Camera
-	Camera2D camera{};
-	camera.offset = { WINDOW_WIDTH / 2.f, WINDOW_HEIGHT / 2.f };
-	camera.target = { gameData.player.playerPos.x + 50, gameData.player.playerPos.y + 50 };
-	camera.rotation = 0.f;
-	camera.zoom = 1.0f;
-#pragma endregion
-
-
 #pragma region Background Initialization
 	gameData.background.bgTexture = LoadTexture(RESOURCES_PATH "Backgrounds/darkPurple.png");
 	gameData.background.bgPos = { 0,0 };
@@ -125,7 +115,6 @@ int main(void)
 	{
 		BeginDrawing();
 		ClearBackground(RAYWHITE);
-		BeginMode2D(camera);
 
 		float deltaTime = GetFrameTime();
 
@@ -140,16 +129,15 @@ int main(void)
 
 		if (IsWindowResized())
 		{
-			gameData.player.playerPos = { 
-				GetScreenWidth() / 2.0f - gameData.player.playerWidth / 2.f, 
-				GetScreenHeight() / 2.0f - gameData.player.playerHeight / 2.f 
+			gameData.player.playerPos = {
+				GetScreenWidth() / 2.0f - gameData.player.playerWidth / 2.f,
+				GetScreenHeight() / 2.0f - gameData.player.playerHeight / 2.f
 			};
 		}
 
 #pragma region Handle Mouse
 		Vector2 mouseScreenPos = GetMousePosition();
-		Vector2 mouseWorldPos = GetScreenToWorld2D(mouseScreenPos, camera);
-		Vector2 mouseDir = Vector2Subtract(mouseWorldPos, gameData.player.playerPos);
+		Vector2 mouseDir = Vector2Subtract(mouseScreenPos, gameData.player.playerPos);
 
 		if (mouseDir.x == 0 && mouseDir.y == 0) {
 			mouseDir = { 1, 0 };
@@ -160,43 +148,30 @@ int main(void)
 		}
 #pragma endregion
 
-
-
-
-#pragma region Inf Background
-
+#pragma region Background Rendering
 		// Calculate background tile size (using scaled texture size)
 		float backgroundSize = gameData.background.bgTexture.height * gameData.background.bgScale;
 
-
-		// Calculate tile indices based on camera target
-		int tileX = static_cast<int>(std::floor(camera.target.x / backgroundSize));
-		int tileY = static_cast<int>(std::floor(camera.target.y / backgroundSize));
-
 		// Determine how many tiles to render based on screen size
-		int tilesX = static_cast<int>(std::ceil(GetScreenWidth() / backgroundSize)) + 2;
-		int tilesY = static_cast<int>(std::ceil(GetScreenHeight() / backgroundSize)) + 2;
+		int tilesX = static_cast<int>(std::ceil(GetScreenWidth() / backgroundSize)) + 1;
+		int tilesY = static_cast<int>(std::ceil(GetScreenHeight() / backgroundSize)) + 1;
 
 		// Render background tiles
-		for (int y = -tilesY / 2; y <= tilesY / 2; y++) 
+		for (int y = 0; y < tilesY; y++)
 		{
-			for (int x = -tilesX / 2; x <= tilesX / 2; x++) 
+			for (int x = 0; x < tilesX; x++)
 			{
-				Vector2 tilePos = 
+				Vector2 tilePos =
 				{
-					(tileX + x) * backgroundSize,
-					(tileY + y) * backgroundSize
+					x * backgroundSize,
+					y * backgroundSize
 				};
 				DrawTextureEx(gameData.background.bgTexture, tilePos, 0, gameData.background.bgScale, RED);
 			}
 		}
-		
 #pragma endregion
 
-
 #pragma region Bullets
-
-
 		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
 		{
 			Bullet b{};
@@ -210,44 +185,61 @@ int main(void)
 			gameData.bullets.push_back(b);
 		}
 
-		for (const Bullet& b : gameData.bullets)
-		{
-			float bulletRotation = std::atan2(mouseDir.y, mouseDir.x);
-			bulletRotation = bulletRotation * (180.0f / 3.1415926535f);
-			//DrawTextureEx(bulletTexture, b.bulletPos, 0, 1, WHITE);
-			DrawTexturePro(
-					bulletTexture,
-					{
-						0,0,
-						(float)bulletTexture.width,
-						(float)bulletTexture.height
-					},
-					{
-						b.bulletPos.x,
-						b.bulletPos.y,
-						(float)bulletTexture.width,
-						(float)bulletTexture.height
-					},
-					{
-						(float)bulletTexture.width / 2.f,
-						(float)bulletTexture.height / 2.f
-					},
-					bulletRotation,
-					WHITE
-				);
-		}
+		// Update bullet positions
 		for (Bullet& b : gameData.bullets)
 		{
-
 			float bulletSpeed = 800.0f;
 			b.bulletPos.x += b.bulletDir.x * bulletSpeed * deltaTime;
 			b.bulletPos.y += b.bulletDir.y * bulletSpeed * deltaTime;
 		}
 
+		// Draw bullets with proper rotation
+		for (const Bullet& b : gameData.bullets)
+		{
+			float bulletRotation = std::atan2(b.bulletDir.y, b.bulletDir.x);
+			bulletRotation = bulletRotation * (180.0f / 3.1415926535f) + 90.f;
+
+			DrawTexturePro(
+				bulletTexture,
+				{
+					0,0,
+					(float)bulletTexture.width,
+					(float)bulletTexture.height
+				},
+				{
+					b.bulletPos.x,
+					b.bulletPos.y,
+					(float)bulletTexture.width,
+					(float)bulletTexture.height
+				},
+				{
+					(float)bulletTexture.width / 2.f,
+					(float)bulletTexture.height / 2.f
+				},
+				bulletRotation,
+				WHITE
+			);
+		}
+
+		// Remove bullets that are off-screen
+		auto it = gameData.bullets.begin();
+		while (it != gameData.bullets.end())
+		{
+			if (it->bulletPos.x < -bulletTexture.width ||
+				it->bulletPos.x > GetScreenWidth() + bulletTexture.width ||
+				it->bulletPos.y < -bulletTexture.height ||
+				it->bulletPos.y > GetScreenHeight() + bulletTexture.height)
+			{
+				it = gameData.bullets.erase(it);
+			}
+			else
+			{
+				++it;
+			}
+		}
 #pragma endregion
 
 #pragma region Player Movement
-
 		Vector2 movement = {};
 
 		if (IsKeyDown(KEY_A))
@@ -267,7 +259,7 @@ int main(void)
 			movement.y += 1;
 		}
 
-		if (movement.x != 0 || movement.y != 0) 
+		if (movement.x != 0 || movement.y != 0)
 		{
 			movement = Vector2Normalize(movement);
 			movement.x *= deltaTime * gameData.player.playerSpeed;
@@ -277,10 +269,23 @@ int main(void)
 			gameData.player.playerPos.y += movement.y;
 		}
 
+		// Apply screen wrapping for player
+		int screenWidth = GetScreenWidth();
+		int screenHeight = GetScreenHeight();
+
+		if (gameData.player.playerPos.x + gameData.player.playerWidth < 0)
+			gameData.player.playerPos.x = screenWidth;
+		else if (gameData.player.playerPos.x > screenWidth)
+			gameData.player.playerPos.x = -gameData.player.playerWidth;
+
+		if (gameData.player.playerPos.y + gameData.player.playerHeight < 0)
+			gameData.player.playerPos.y = screenHeight;
+		else if (gameData.player.playerPos.y > screenHeight)
+			gameData.player.playerPos.y = -gameData.player.playerHeight;
+
 		float playerRotation = std::atan2(mouseDir.y, mouseDir.x);
 		playerRotation = playerRotation * (180.0f / 3.1415926535f);
 
-		
 		gameData.player.playerDes = {
 			gameData.player.playerPos.x + gameData.player.playerWidth / 2.f,
 			gameData.player.playerPos.y + gameData.player.playerHeight / 2.f,
@@ -289,29 +294,13 @@ int main(void)
 		};
 
 		DrawTexturePro(
-			gameData.player.playerTexture, 
-			gameData.player.playerSource, 
-			gameData.player.playerDes, 
-			gameData.player.playerOrigin, 
-			playerRotation + 90.f, 
+			gameData.player.playerTexture,
+			gameData.player.playerSource,
+			gameData.player.playerDes,
+			gameData.player.playerOrigin,
+			playerRotation + 90.f,
 			WHITE
 		);
-		//DrawRectangleLines(gameData.player.playerPos.x, gameData.player.playerPos.y, gameData.player.playerWidth, gameData.player.playerHeight, WHITE);
-		//float screenHeight = GetScreenHeight();
-		//float screenWidth = GetScreenWidth();
-		//DrawLine((int)camera.target.x, -screenHeight * 10, (int)camera.target.x, screenHeight * 10, GREEN);
-		//DrawLine(-screenWidth * 10, (int)camera.target.y, screenWidth * 10, (int)camera.target.y, GREEN);
-#pragma endregion
-
-
-#pragma region Camera Following
-
-		camera.offset = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
-		camera.target = {
-			gameData.player.playerPos.x + gameData.player.playerWidth / 2.f,
-			gameData.player.playerPos.y + gameData.player.playerHeight / 2.f
-		};
-
 #pragma endregion
 
 #pragma region imgui
@@ -323,15 +312,13 @@ int main(void)
 			ImGui::RenderPlatformWindowsDefault();
 		}
 #pragma endregion
-		EndMode2D();
+
 		EndDrawing();
 	}
-
 
 #pragma region imgui
 	rlImGuiShutdown();
 #pragma endregion
-
 
 	UnloadTexture(gameData.player.playerTexture);
 	UnloadTexture(bulletTexture);
