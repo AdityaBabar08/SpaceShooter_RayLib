@@ -237,6 +237,46 @@ int main(void)
 
 
 
+#pragma region Collison
+
+		auto bulletIt = gameData.bullets.begin();
+		while (bulletIt != gameData.bullets.end()) {
+			bool bulletHit = false;
+			auto meteorIt = gameData.meteors.begin();
+			while (meteorIt != gameData.meteors.end()) {
+				// Calculate meteor's bounding rectangle with position as center
+				float meteorWidth = (float)meteorTexture[meteorIt->type].width;
+				float meteorHeight = (float)meteorTexture[meteorIt->type].height;
+				Rectangle meteorRect = {
+					meteorIt->meteorPos.x - meteorWidth / 2.0f,
+					meteorIt->meteorPos.y - meteorHeight / 2.0f,
+					meteorWidth,
+					meteorHeight
+				};
+
+				if (CheckCollisionPointRec(bulletIt->bulletPos, meteorRect)) {
+					// Remove meteor and bullet
+					meteorIt = gameData.meteors.erase(meteorIt);
+					bulletIt = gameData.bullets.erase(bulletIt);
+					bulletHit = true;
+					break; // Bullet can only hit one meteor
+				}
+				else {
+					++meteorIt;
+				}
+			}
+			if (!bulletHit) {
+				++bulletIt;
+			}
+		}
+
+
+#pragma endregion
+
+
+
+
+
 #pragma region Bullets
 		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
 		{
