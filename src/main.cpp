@@ -14,6 +14,8 @@
 
 const int WINDOW_WIDTH = 1280;
 const int WINDOW_HEIGHT = 720;
+const int MAX_METEORS = 20;
+
 
 struct Player
 {
@@ -27,6 +29,27 @@ struct Player
 	Rectangle playerDes;
 	Vector2 playerOrigin;
 };
+
+struct Meteor
+{
+	bool isActive;
+	Vector2 meteorPos;
+	Vector2 meteorDir;
+	int meteorWidth;
+	int meteorHeight;
+	Vector2 meteorSpeed;
+	float meteorRot;
+	int type;
+};
+
+enum MeteorType
+{
+	TINY = 0,
+	MID,
+	LARGE
+};
+
+Texture2D meteorTexture[3];
 
 struct Background
 {
@@ -47,6 +70,7 @@ struct GameData
 	Player player;
 	Background background;
 
+	std::vector<Meteor> meteors;
 	std::vector<Bullet> bullets;
 };
 
@@ -91,14 +115,14 @@ int main(void)
 #pragma region Player Initialization
 	gameData.player.playerTexture = LoadTexture(RESOURCES_PATH "playerShip3_red.png");
 	gameData.player.playerPos = { WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f };
-	gameData.player.playerHeight = gameData.player.playerTexture.height;
-	gameData.player.playerWidth = gameData.player.playerTexture.width;
+	gameData.player.playerHeight = gameData.player.playerTexture.height * 0.5f;
+	gameData.player.playerWidth = gameData.player.playerTexture.width * 0.5f;
 	gameData.player.playerSpeed = 500;
 	gameData.player.playerSource = {
 		0,
 		0,
-		(float)gameData.player.playerWidth,
-		(float)gameData.player.playerHeight
+		(float)gameData.player.playerTexture.width,
+		(float)gameData.player.playerTexture.height
 	};
 	gameData.player.playerOrigin = { gameData.player.playerWidth / 2.f, gameData.player.playerHeight / 2.f };
 #pragma endregion
@@ -108,6 +132,31 @@ int main(void)
 	gameData.background.bgPos = { 0,0 };
 	gameData.background.bgScale = 2;
 #pragma endregion
+
+	meteorTexture[TINY] = LoadTexture(RESOURCES_PATH "Meteors/meteorBrown_small.png");
+	meteorTexture[MID] = LoadTexture(RESOURCES_PATH "Meteors/meteorBrown_med.png");
+	meteorTexture[LARGE] = LoadTexture(RESOURCES_PATH "Meteors/meteorBrown_big.png");
+
+
+	for (int i = 0; i < MAX_METEORS; i++)
+	{
+		Meteor m;
+		m.type = GetRandomValue(TINY, LARGE);
+		m.isActive = true;
+		m.meteorPos = { (float)GetRandomValue(0, WINDOW_WIDTH), (float)GetRandomValue(0, WINDOW_HEIGHT) };
+		// Ensure not too close to player
+		while (Vector2Distance(m.meteorPos, gameData.player.playerPos) < 100.0f) {
+			m.meteorPos = { (float)GetRandomValue(0, WINDOW_WIDTH), (float)GetRandomValue(0, WINDOW_HEIGHT) };
+		}
+
+		m.meteorRot = (float)GetRandomValue(0, 360);
+
+		m.meteorSpeed = { (float)GetRandomValue(100,200), (float)GetRandomValue(100,200) };
+
+		gameData.meteors.push_back(m);
+	}
+
+
 
 	Texture2D bulletTexture = LoadTexture(RESOURCES_PATH "laserBlue02.png");
 
@@ -171,6 +220,23 @@ int main(void)
 		}
 #pragma endregion
 
+
+		
+#pragma region Draw meteors
+		for (const auto& m : gameData.meteors)
+		{
+			if (m.isActive)
+			{
+				Rectangle source = { 0, 0, (float)meteorTexture[m.type].width, (float)meteorTexture[m.type].height };
+				Rectangle dest = { m.meteorPos.x, m.meteorPos.y, (float)meteorTexture[m.type].width, (float)meteorTexture[m.type].height };
+				Vector2 origin = { meteorTexture[m.type].width / 2.f, meteorTexture[m.type].height / 2.f };
+				DrawTexturePro(meteorTexture[m.type], source, dest, origin, 0, WHITE);
+			}
+		}
+#pragma endregion
+
+
+
 #pragma region Bullets
 		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
 		{
@@ -209,12 +275,12 @@ int main(void)
 				{
 					b.bulletPos.x,
 					b.bulletPos.y,
-					(float)bulletTexture.width,
-					(float)bulletTexture.height
+					(float)bulletTexture.width * 0.5f,
+					(float)bulletTexture.height * 0.5f
 				},
 				{
-					(float)bulletTexture.width / 2.f,
-					(float)bulletTexture.height / 2.f
+					(float)bulletTexture.width * 0.5f / 2.f,
+					(float)bulletTexture.height * 0.5f / 2.f
 				},
 				bulletRotation,
 				WHITE
@@ -303,6 +369,40 @@ int main(void)
 		);
 #pragma endregion
 
+		
+#pragma region Update meteors
+		for (auto& m : gameData.meteors) 
+		{
+			if (m.isActive)
+			{
+				m.meteorPos.x += m.meteorSpeed.x * deltaTime * cosf(m.meteorRot * DEG2RAD);
+				m.meteorPos.y += m.meteorSpeed.y * deltaTime * sinf(m.meteorRot * DEG2RAD);
+				//m.rotation += m.rotationSpeed * deltaTime;
+
+				// Screen wrapping for meteors
+				float meteorWidth = (float)meteorTexture[m.type].width;
+				float meteorHeight = (float)meteorTexture[m.type].height;
+				float mleft = m.meteorPos.x - meteorWidth / 2.f;
+				float mright = m.meteorPos.x + meteorWidth / 2.f;
+				float mtop = m.meteorPos.y - meteorHeight / 2.f;
+				float mbottom = m.meteorPos.y + meteorHeight / 2.f;
+				if (mright < 0)
+					m.meteorPos.x = screenWidth + meteorWidth / 2.f;
+				else if (mleft > screenWidth)
+					m.meteorPos.x = -meteorWidth / 2.f;
+				if (mbottom < 0)
+					m.meteorPos.y = screenHeight + meteorHeight / 2.f;
+				else if (mtop > screenHeight)
+					m.meteorPos.y = -meteorHeight / 2.f;
+			}
+
+		}
+#pragma endregion
+
+
+
+
+
 #pragma region imgui
 		rlImGuiEnd();
 
@@ -322,6 +422,11 @@ int main(void)
 
 	UnloadTexture(gameData.player.playerTexture);
 	UnloadTexture(bulletTexture);
+
+	UnloadTexture(meteorTexture[TINY]);
+	UnloadTexture(meteorTexture[MID]);
+	UnloadTexture(meteorTexture[LARGE]);
+
 	UnloadTexture(gameData.background.bgTexture);
 	CloseWindow();
 
