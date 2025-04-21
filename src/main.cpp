@@ -102,6 +102,8 @@ struct GameData
 
 	GameState state;  // Add this to track game state
 	float restartTimer; // Timer for restart delay
+
+	int score;
 };
 #pragma endregion
 
@@ -292,6 +294,8 @@ void InitGame(GameData* defaultData)
 		bulletTexture[B_TINY] = LoadTexture(RESOURCES_PATH "laserBlue02.png");
 	}
 	/*bulletTexture[B_TINY] = LoadTexture(RESOURCES_PATH "laserBlue02.png");*/
+
+	defaultData->score = 0;
 }
 
 void UpdateGame(GameData* defaultData, float deltaTime)
@@ -366,6 +370,15 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 				float meteorRadius = meteorWidth / 2.0f * 0.8f;
 				if (CheckCollisionPointCircle(bulletIt->bulletPos, meteorIt->meteorPos, meteorRadius)) {
 					// Remove meteor and bullet
+					switch (meteorIt->type)
+					{
+					case TINY: defaultData->score += 50;
+						break;
+					case MID: defaultData->score += 25;
+						break;
+					case LARGE: defaultData->score += 10;
+						break;
+					}
 					meteorIt = defaultData->meteors.erase(meteorIt);
 					bulletIt = defaultData->bullets.erase(bulletIt);
 					bulletHit = true;
@@ -656,10 +669,6 @@ void RenderGame(GameData* defaultData)
 
 	else
 	{
-
-
-
-
 		// In active game or game over state, render game elements
 #pragma region Draw meteors
 		for (const auto& m : defaultData->meteors)
@@ -740,12 +749,17 @@ void RenderGame(GameData* defaultData)
 			int restartFontSize = 30;
 			int restartTextWidth = MeasureText(restartText, restartFontSize);
 			DrawText(restartText, GetScreenWidth() / 2 - restartTextWidth / 2, GetScreenHeight() / 2 + 20, restartFontSize, WHITE);
-
+			
 			char timerText[50];
 			sprintf(timerText, "Restarting in %.1f", defaultData->restartTimer);
 			int timerTextWidth = MeasureText(timerText, restartFontSize);
 			DrawText(timerText, GetScreenWidth() / 2 - timerTextWidth / 2, GetScreenHeight() / 2 + 60, restartFontSize, WHITE);
 		}
+
+		char playerScore[200];
+		sprintf(playerScore, "SCORE: %d", defaultData->score);
+		DrawText(playerScore, 80, 80, 25, RAYWHITE);
+
 	}
 }
 
