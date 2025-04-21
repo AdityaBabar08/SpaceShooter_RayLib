@@ -17,8 +17,6 @@ const int WINDOW_HEIGHT = 720;
 const int MAX_METEORS = 20;
 
 
-
-
 #pragma region Game Data 
 struct Player
 {
@@ -215,12 +213,12 @@ int main(void)
 
 void InitGame(GameData* defaultData)
 {
-	
+
 
 	sounds[LASER_SHOT] = LoadSound(RESOURCES_PATH "Sounds/sfx_laser1.ogg");
 
 	// Reset game state
-	defaultData->state = GAME_ACTIVE;
+	defaultData->state = GAME_TITLE;
 	defaultData->restartTimer = 0.0f;
 
 	// Clear any existing meteors and bullets
@@ -267,22 +265,23 @@ void InitGame(GameData* defaultData)
 	meteorTexture[LARGE] = LoadTexture(RESOURCES_PATH "Meteors/meteorBrown_big.png");*/
 
 
-	for (int i = 0; i < MAX_METEORS; i++)
+	if (defaultData->state != GAME_TITLE)
 	{
-		Meteor m;
-		m.type = GetRandomValue(TINY, LARGE);
-		m.isActive = true;
-		m.meteorPos = { (float)GetRandomValue(0, WINDOW_WIDTH), (float)GetRandomValue(0, WINDOW_HEIGHT) };
-		// Ensure not too close to player
-		while (Vector2Distance(m.meteorPos, defaultData->player.playerPos) < 100.0f) {
+		for (int i = 0; i < MAX_METEORS; i++)
+		{
+			Meteor m;
+			m.type = GetRandomValue(TINY, LARGE);
+			m.isActive = true;
 			m.meteorPos = { (float)GetRandomValue(0, WINDOW_WIDTH), (float)GetRandomValue(0, WINDOW_HEIGHT) };
+			// Ensure not too close to player
+			while (Vector2Distance(m.meteorPos, defaultData->player.playerPos) < 100.0f) {
+				m.meteorPos = { (float)GetRandomValue(0, WINDOW_WIDTH), (float)GetRandomValue(0, WINDOW_HEIGHT) };
+			}
+
+			m.meteorRot = (float)GetRandomValue(0, 360);
+			m.meteorSpeed = { (float)GetRandomValue(100,200), (float)GetRandomValue(100,200) };
+			defaultData->meteors.push_back(m);
 		}
-
-		m.meteorRot = (float)GetRandomValue(0, 360);
-
-		m.meteorSpeed = { (float)GetRandomValue(100,200), (float)GetRandomValue(100,200) };
-
-		defaultData->meteors.push_back(m);
 	}
 #pragma endregion
 
@@ -297,8 +296,44 @@ void InitGame(GameData* defaultData)
 
 void UpdateGame(GameData* defaultData, float deltaTime)
 {
-	if (defaultData->state == GAME_ACTIVE)
+	// Title screen logic
+	if (defaultData->state == GAME_TITLE)
 	{
+		// If space is pressed, transition to active game
+		if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+		{
+			defaultData->state = GAME_ACTIVE;
+
+			// Generate meteors when transitioning to active game
+			for (int i = 0; i < MAX_METEORS; i++)
+			{
+				Meteor m;
+				m.type = GetRandomValue(TINY, LARGE);
+				m.isActive = true;
+				m.meteorPos = { (float)GetRandomValue(0, WINDOW_WIDTH), (float)GetRandomValue(0, WINDOW_HEIGHT) };
+				// Ensure not too close to player
+				while (Vector2Distance(m.meteorPos, defaultData->player.playerPos) < 100.0f) {
+					m.meteorPos = { (float)GetRandomValue(0, WINDOW_WIDTH), (float)GetRandomValue(0, WINDOW_HEIGHT) };
+				}
+
+				m.meteorRot = (float)GetRandomValue(0, 360);
+				m.meteorSpeed = { (float)GetRandomValue(100,200), (float)GetRandomValue(100,200) };
+				defaultData->meteors.push_back(m);
+			}
+
+			// Reset player position
+			defaultData->player.playerPos = {
+				GetScreenWidth() / 2.0f - defaultData->player.playerWidth / 2.f,
+				GetScreenHeight() / 2.0f - defaultData->player.playerHeight / 2.f
+			};
+		}
+
+		// Background animation for title screen
+		// You could add some floating meteors or other animations here
+	}
+	else if (defaultData->state == GAME_ACTIVE)
+	{
+		// Keep your existing GAME_ACTIVE logic
 #pragma region Handle Mouse
 		Vector2 mouseScreenPos = GetMousePosition();
 		Vector2 mouseDir = Vector2Subtract(mouseScreenPos, defaultData->player.playerPos);
@@ -313,7 +348,6 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 #pragma endregion
 
 #pragma region Collison
-
 		auto bulletIt = defaultData->bullets.begin();
 		while (bulletIt != defaultData->bullets.end()) {
 			bool bulletHit = false;
@@ -329,7 +363,8 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 					meteorHeight
 				};
 
-				if (CheckCollisionPointRec(bulletIt->bulletPos, meteorRect)) {
+				float meteorRadius = meteorWidth / 2.0f * 0.8f;
+				if (CheckCollisionPointCircle(bulletIt->bulletPos, meteorIt->meteorPos, meteorRadius)) {
 					// Remove meteor and bullet
 					meteorIt = defaultData->meteors.erase(meteorIt);
 					bulletIt = defaultData->bullets.erase(bulletIt);
@@ -344,8 +379,6 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 				++bulletIt;
 			}
 		}
-
-
 #pragma endregion
 
 #pragma region Bullets
@@ -443,7 +476,6 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 			(float)defaultData->player.playerWidth,
 			(float)defaultData->player.playerHeight
 		};
-
 #pragma endregion
 
 #pragma region Update meteors
@@ -453,7 +485,6 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 			{
 				m.meteorPos.x += m.meteorSpeed.x * deltaTime * cosf(m.meteorRot * DEG2RAD);
 				m.meteorPos.y += m.meteorSpeed.y * deltaTime * sinf(m.meteorRot * DEG2RAD);
-				//m.rotation += m.rotationSpeed * deltaTime;
 
 				// Screen wrapping for meteors
 				float meteorWidth = (float)meteorTexture[m.type].width;
@@ -472,7 +503,6 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 					m.meteorPos.y = -meteorHeight / 2.f;
 
 				// Collision with player
-
 				Rectangle meteorRect = {
 					m.meteorPos.x - meteorWidth / 2.0f,
 					m.meteorPos.y - meteorHeight / 2.0f,
@@ -480,16 +510,34 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 					meteorHeight
 				};
 
-				if (CheckCollisionRecs(meteorRect, { defaultData->player.playerPos.x, defaultData->player.playerPos.y, (float)defaultData->player.playerWidth, (float)defaultData->player.playerHeight }))
-				{
+
+
+				//if (CheckCollisionRecs(meteorRect, { defaultData->player.playerPos.x + 12, defaultData->player.playerPos.y, (float)defaultData->player.playerWidth - 25, (float)defaultData->player.playerHeight }))
+				//{
+				//	// Set game state to game over
+				//	defaultData->state = GAME_OVER;
+				//	defaultData->restartTimer = 3.0f; // 3 second delay before restart
+				//	break;
+				//}
+
+				// Collision with player - using circle for meteor and rectangle for player
+				float meteorRadius = meteorWidth / 2.0f * 0.8f; // Using 80% of half-width for a tighter circle
+
+				if (CheckCollisionCircleRec(
+					m.meteorPos,                                // Meteor center position
+					meteorRadius,                               // Meteor radius (slightly reduced for better gameplay)
+					{                                           // Player hitbox rectangle
+						defaultData->player.playerPos.x + 12,   // X offset to narrow the hitbox
+						defaultData->player.playerPos.y,        // Y position
+						(float)defaultData->player.playerWidth - 25, // Narrower width
+						(float)defaultData->player.playerHeight      // Full height
+					})) {
 					// Set game state to game over
 					defaultData->state = GAME_OVER;
 					defaultData->restartTimer = 3.0f; // 3 second delay before restart
 					break;
-
 				}
 			}
-
 		}
 #pragma endregion 
 	}
@@ -504,12 +552,12 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 			InitGame(defaultData); // Reset the game
 		}
 	}
-
 }
 
+
+// Finally, modify the RenderGame function to show the title screen
 void RenderGame(GameData* defaultData)
 {
-
 #pragma region Background Rendering
 	// Calculate background tile size (using scaled texture size)
 	float backgroundSize = defaultData->background.bgTexture.height * defaultData->background.bgScale;
@@ -533,35 +581,118 @@ void RenderGame(GameData* defaultData)
 	}
 #pragma endregion
 
-#pragma region Draw meteors
-	for (const auto& m : defaultData->meteors)
+#pragma region Title Screen
+	// Render different content based on game state
+	if (defaultData->state == GAME_TITLE)
 	{
-		if (m.isActive)
-		{
-			Rectangle source = { 0, 0, (float)meteorTexture[m.type].width, (float)meteorTexture[m.type].height };
-			Rectangle dest = { m.meteorPos.x, m.meteorPos.y, (float)meteorTexture[m.type].width, (float)meteorTexture[m.type].height };
-			Vector2 origin = { meteorTexture[m.type].width / 2.f, meteorTexture[m.type].height / 2.f };
-			DrawTexturePro(meteorTexture[m.type], source, dest, origin, 0, WHITE);
+		// Draw animated title screen
+		const char* titleText = "SPACE SHOOTER";
+		int titleFontSize = 80;
+		int titleTextWidth = MeasureText(titleText, titleFontSize);
 
+		// Calculate position for centered text
+		int screenWidth = GetScreenWidth();
+		int screenHeight = GetScreenHeight();
+
+		// Create a pulsing effect for the title
+		float pulse = 0.8f + 0.2f * sinf(GetTime() * 3.0f);
+		Color titleColor = { 255, 255, 255, 255 };
+
+		// Draw the title with a shadow effect
+		DrawText(titleText, screenWidth / 2 - titleTextWidth / 2 + 4, screenHeight / 4 + 4, titleFontSize, { 0, 0, 0, 128 });
+		DrawText(titleText, screenWidth / 2 - titleTextWidth / 2, screenHeight / 4, titleFontSize, titleColor);
+
+		// Draw subtitle
+		const char* subtitleText = "Survive the meteor storm!";
+		int subtitleFontSize = 30;
+		int subtitleTextWidth = MeasureText(subtitleText, subtitleFontSize);
+		DrawText(subtitleText, screenWidth / 2 - subtitleTextWidth / 2, screenHeight / 4 + titleFontSize + 20, subtitleFontSize, { 180, 180, 220, 255 });
+
+		// Draw player ship in the center screen
+		Rectangle playerSource = {
+			0, 0,
+			(float)defaultData->player.playerTexture.width,
+			(float)defaultData->player.playerTexture.height
+		};
+
+		Rectangle playerDest = {
+			screenWidth / 2,
+			screenHeight / 2 + 40,
+			(float)defaultData->player.playerWidth * 2.0f * pulse, // Animated size
+			(float)defaultData->player.playerHeight * 2.0f * pulse // Animated size
+		};
+
+		Vector2 playerOrigin = {
+			defaultData->player.playerWidth,
+			defaultData->player.playerHeight
+		};
+
+		DrawTexturePro(
+			defaultData->player.playerTexture,
+			playerSource,
+			playerDest,
+			playerOrigin,
+			GetTime() * 30.0f, // Slowly rotating
+			WHITE
+		);
+
+		// Instructions
+		const char* startText = "Press SPACE or CLICK to start";
+		int startFontSize = 35;
+		int startTextWidth = MeasureText(startText, startFontSize);
+
+		// Blinking effect for start text
+		if ((int)(GetTime() * 2) % 2 == 0) {
+			DrawText(startText, screenWidth / 2 - startTextWidth / 2, screenHeight * 3 / 4, startFontSize, YELLOW);
 		}
+
+		// Draw controls info
+		const char* controlsText = "Controls: WASD to move, MOUSE to aim, LEFT CLICK to shoot";
+		int controlsFontSize = 20;
+		int controlsTextWidth = MeasureText(controlsText, controlsFontSize);
+		DrawText(controlsText, screenWidth / 2 - controlsTextWidth / 2, screenHeight - 50, controlsFontSize, LIGHTGRAY);
 	}
 #pragma endregion
 
-#pragma region Draw Bullets
-
-	// Draw bullets with proper rotation
-	for (const Bullet& b : defaultData->bullets)
+	else
 	{
-		float bulletRotation = std::atan2(b.bulletDir.y, b.bulletDir.x);
-		bulletRotation = bulletRotation * (180.0f / 3.1415926535f) + 90.f;
 
-		DrawTexturePro(
-			bulletTexture[B_TINY],
+
+
+
+		// In active game or game over state, render game elements
+#pragma region Draw meteors
+		for (const auto& m : defaultData->meteors)
+		{
+			if (m.isActive)
 			{
-				0,0,
-				(float)bulletTexture[B_TINY].width,
-				(float)bulletTexture[B_TINY].height
-			},
+				Rectangle source = { 0, 0, (float)meteorTexture[m.type].width, (float)meteorTexture[m.type].height };
+				Rectangle dest = { m.meteorPos.x, m.meteorPos.y, (float)meteorTexture[m.type].width, (float)meteorTexture[m.type].height };
+				Vector2 origin = { meteorTexture[m.type].width / 2.f, meteorTexture[m.type].height / 2.f };
+				DrawTexturePro(meteorTexture[m.type], source, dest, origin, 0, WHITE);
+				//DrawRectangleLines(m.meteorPos.x - meteorTexture[m.type].width / 2.f, m.meteorPos.y - meteorTexture[m.type].height / 2.f, (float)meteorTexture[m.type].width, (float)meteorTexture[m.type].height, WHITE);
+				//DrawCircleLines( m.meteorPos.x, m.meteorPos.y, (float)meteorTexture[m.type].width / 2.f, WHITE);
+
+				float meteorRadius = meteorTexture[m.type].width / 2.0f * 0.8f;
+				DrawCircleLines(m.meteorPos.x, m.meteorPos.y, meteorRadius, RED);
+			}
+		}
+#pragma endregion
+
+#pragma region Draw Bullets
+		// Draw bullets with proper rotation
+		for (const Bullet& b : defaultData->bullets)
+		{
+			float bulletRotation = std::atan2(b.bulletDir.y, b.bulletDir.x);
+			bulletRotation = bulletRotation * (180.0f / 3.1415926535f) + 90.f;
+
+			DrawTexturePro(
+				bulletTexture[B_TINY],
+				{
+					0,0,
+					(float)bulletTexture[B_TINY].width,
+					(float)bulletTexture[B_TINY].height
+				},
 				{
 					b.bulletPos.x,
 					b.bulletPos.y,
@@ -572,47 +703,50 @@ void RenderGame(GameData* defaultData)
 					(float)bulletTexture[B_TINY].width * 0.5f / 2.f,
 					(float)bulletTexture[B_TINY].height * 0.5f / 2.f
 				},
-			bulletRotation,
-			WHITE
-		);
-	}
-
+				bulletRotation,
+				WHITE
+			);
+		}
 #pragma endregion
 
 #pragma region Draw Player
+		DrawTexturePro(
+			defaultData->player.playerTexture,
+			defaultData->player.playerSource,
+			defaultData->player.playerDes,
+			defaultData->player.playerOrigin,
+			defaultData->player.playerRotation + 90.f,
+			WHITE
+		);
 
-	DrawTexturePro(
-		defaultData->player.playerTexture,
-		defaultData->player.playerSource,
-		defaultData->player.playerDes,
-		defaultData->player.playerOrigin,
-		defaultData->player.playerRotation + 90.f,
-		WHITE
-	);
-
+		DrawRectangleLines(defaultData->player.playerPos.x + 12,
+			defaultData->player.playerPos.y,
+			(float)defaultData->player.playerWidth - 25,
+			(float)defaultData->player.playerHeight, GREEN
+		);
 #pragma endregion
 
-	// Draw game over screen if in game over state
-	if (defaultData->state == GAME_OVER)
-	{
-		DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), ColorAlpha(BLACK, 0.7f));
+		// Draw game over screen if in game over state
+		if (defaultData->state == GAME_OVER)
+		{
+			DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), ColorAlpha(BLACK, 0.7f));
 
-		const char* gameOverText = "GAME OVER";
-		int fontSize = 60;
-		int textWidth = MeasureText(gameOverText, fontSize);
-		DrawText(gameOverText, GetScreenWidth() / 2 - textWidth / 2, GetScreenHeight() / 2 - 60, fontSize, RED);
+			const char* gameOverText = "GAME OVER";
+			int fontSize = 60;
+			int textWidth = MeasureText(gameOverText, fontSize);
+			DrawText(gameOverText, GetScreenWidth() / 2 - textWidth / 2, GetScreenHeight() / 2 - 60, fontSize, RED);
 
-		const char* restartText = "Press SPACE to restart";
-		int restartFontSize = 30;
-		int restartTextWidth = MeasureText(restartText, restartFontSize);
-		DrawText(restartText, GetScreenWidth() / 2 - restartTextWidth / 2, GetScreenHeight() / 2 + 20, restartFontSize, WHITE);
+			const char* restartText = "Press SPACE to restart";
+			int restartFontSize = 30;
+			int restartTextWidth = MeasureText(restartText, restartFontSize);
+			DrawText(restartText, GetScreenWidth() / 2 - restartTextWidth / 2, GetScreenHeight() / 2 + 20, restartFontSize, WHITE);
 
-		char timerText[50];
-		sprintf(timerText, "Restarting in %.1f", defaultData->restartTimer);
-		int timerTextWidth = MeasureText(timerText, restartFontSize);
-		DrawText(timerText, GetScreenWidth() / 2 - timerTextWidth / 2, GetScreenHeight() / 2 + 60, restartFontSize, WHITE);
+			char timerText[50];
+			sprintf(timerText, "Restarting in %.1f", defaultData->restartTimer);
+			int timerTextWidth = MeasureText(timerText, restartFontSize);
+			DrawText(timerText, GetScreenWidth() / 2 - timerTextWidth / 2, GetScreenHeight() / 2 + 60, restartFontSize, WHITE);
+		}
 	}
-
 }
 
 void EndGame(GameData* defaultData)
