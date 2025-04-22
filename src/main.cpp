@@ -104,6 +104,9 @@ struct GameData
 	float restartTimer; // Timer for restart delay
 
 	int score;
+	int lives;
+	float invincibilityTimer;
+	bool isInvincible;
 };
 #pragma endregion
 
@@ -295,6 +298,9 @@ void InitGame(GameData* defaultData)
 	}
 	/*bulletTexture[B_TINY] = LoadTexture(RESOURCES_PATH "laserBlue02.png");*/
 
+	defaultData->lives = 3;
+	defaultData->isInvincible = false;
+	defaultData->invincibilityTimer = 0.0f;
 	defaultData->score = 0;
 }
 
@@ -491,6 +497,16 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 		};
 #pragma endregion
 
+#pragma region Invincibility
+		if (defaultData->isInvincible) {
+			defaultData->invincibilityTimer -= deltaTime;
+			if (defaultData->invincibilityTimer <= 0.0f) {
+				defaultData->isInvincible = false;
+			}
+		}
+#pragma endregion
+
+
 #pragma region Update meteors
 		for (auto& m : defaultData->meteors)
 		{
@@ -545,10 +561,29 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 						(float)defaultData->player.playerWidth - 25, // Narrower width
 						(float)defaultData->player.playerHeight      // Full height
 					})) {
-					// Set game state to game over
-					defaultData->state = GAME_OVER;
-					defaultData->restartTimer = 3.0f; // 3 second delay before restart
-					break;
+
+					if (!defaultData->isInvincible) {
+						defaultData->lives--;
+
+						if (defaultData->lives > 0) {
+							// Player still has lives, make invincible and respawn
+							defaultData->isInvincible = true;
+							defaultData->invincibilityTimer = 3.0f; // 3 seconds of invincibility
+
+							// Reset player position to center of screen
+							defaultData->player.playerPos = {
+								GetScreenWidth() / 2.0f - defaultData->player.playerWidth / 2.f,
+								GetScreenHeight() / 2.0f - defaultData->player.playerHeight / 2.f
+							};
+						}
+						else {
+							// No lives left, game over
+							defaultData->state = GAME_OVER;
+							defaultData->restartTimer = 3.0f;
+						}
+						break;
+					}
+
 				}
 			}
 		}
@@ -719,13 +754,20 @@ void RenderGame(GameData* defaultData)
 #pragma endregion
 
 #pragma region Draw Player
+
+		Color playerTint = WHITE;
+		if (defaultData->isInvincible && (int)(GetTime() * 10) % 2 == 0) { // Flashing effect
+			playerTint = BLANK; // Or GRAY, or ColorAlpha(WHITE, 0.5f)
+		}
+
+
 		DrawTexturePro(
 			defaultData->player.playerTexture,
 			defaultData->player.playerSource,
 			defaultData->player.playerDes,
 			defaultData->player.playerOrigin,
 			defaultData->player.playerRotation + 90.f,
-			WHITE
+			playerTint
 		);
 
 		DrawRectangleLines(defaultData->player.playerPos.x + 12,
@@ -756,9 +798,14 @@ void RenderGame(GameData* defaultData)
 			DrawText(timerText, GetScreenWidth() / 2 - timerTextWidth / 2, GetScreenHeight() / 2 + 60, restartFontSize, WHITE);
 		}
 
-		char playerScore[200];
+		char playerScore[50];
 		sprintf(playerScore, "SCORE: %d", defaultData->score);
 		DrawText(playerScore, 80, 80, 25, RAYWHITE);
+
+		char playerLives[20];
+		sprintf(playerLives, "LIVES: %d", defaultData->lives);
+		DrawText(playerLives, 80, 50, 25, RAYWHITE);
+
 
 	}
 }
