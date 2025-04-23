@@ -93,7 +93,8 @@ enum GameState
 {
 	GAME_TITLE,
 	GAME_ACTIVE,
-	GAME_OVER
+	GAME_OVER,
+	GAME_WIN
 };
 
 struct GameData
@@ -111,6 +112,8 @@ struct GameData
 	int lives;
 	float invincibilityTimer;
 	bool isInvincible;
+
+	int winScore;
 };
 #pragma endregion
 
@@ -309,6 +312,8 @@ void InitGame(GameData* defaultData)
 
 	playerIcon = LoadTexture(RESOURCES_PATH "playerLife3_red.png");
 	crossIcon = LoadTexture(RESOURCES_PATH "numeralX.png");
+
+	defaultData->winScore = 500;
 }
 
 void UpdateGame(GameData* defaultData, float deltaTime)
@@ -350,6 +355,14 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 	}
 	else if (defaultData->state == GAME_ACTIVE)
 	{
+
+		// Check win condition - if score equals or exceeds winScore
+		if (defaultData->score >= defaultData->winScore)
+		{
+			defaultData->state = GAME_WIN;
+			defaultData->restartTimer = 5.0f; // 5 second delay before restart
+		}
+
 		// Keep your existing GAME_ACTIVE logic
 #pragma region Handle Mouse
 		Vector2 mouseScreenPos = GetMousePosition();
@@ -607,6 +620,17 @@ void UpdateGame(GameData* defaultData, float deltaTime)
 			InitGame(defaultData); // Reset the game
 		}
 	}
+	else if (defaultData->state == GAME_WIN)
+	{
+		// Win state logic - similar to game over
+		defaultData->restartTimer -= deltaTime;
+
+		// Reset game after timer expires or when space is pressed
+		if (defaultData->restartTimer <= 0.0f || IsKeyPressed(KEY_SPACE))
+		{
+			InitGame(defaultData); // Reset the game
+		}
+	}
 }
 
 
@@ -805,6 +829,33 @@ void RenderGame(GameData* defaultData)
 			DrawText(timerText, GetScreenWidth() / 2 - timerTextWidth / 2, GetScreenHeight() / 2 + 60, restartFontSize, WHITE);
 		}
 
+		// Add win screen rendering
+		if (defaultData->state == GAME_WIN)
+		{
+			DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), ColorAlpha(BLACK, 0.7f));
+
+			const char* winText = "YOU WIN!";
+			int fontSize = 60;
+			int textWidth = MeasureText(winText, fontSize);
+			DrawText(winText, GetScreenWidth() / 2 - textWidth / 2, GetScreenHeight() / 2 - 80, fontSize, GREEN);
+
+			char scoreText[50];
+			sprintf(scoreText, "Final Score: %d", defaultData->score);
+			int scoreFontSize = 40;
+			int scoreTextWidth = MeasureText(scoreText, scoreFontSize);
+			DrawText(scoreText, GetScreenWidth() / 2 - scoreTextWidth / 2, GetScreenHeight() / 2, scoreFontSize, GOLD);
+
+			const char* restartText = "Press SPACE to play again";
+			int restartFontSize = 30;
+			int restartTextWidth = MeasureText(restartText, restartFontSize);
+			DrawText(restartText, GetScreenWidth() / 2 - restartTextWidth / 2, GetScreenHeight() / 2 + 60, restartFontSize, WHITE);
+
+			char timerText[50];
+			sprintf(timerText, "New game in %.1f", defaultData->restartTimer);
+			int timerTextWidth = MeasureText(timerText, restartFontSize);
+			DrawText(timerText, GetScreenWidth() / 2 - timerTextWidth / 2, GetScreenHeight() / 2 + 100, restartFontSize, WHITE);
+		}
+
 		char playerScore[50];
 		sprintf(playerScore, "SCORE: %d", defaultData->score);
 		DrawText(playerScore, 80, 80, 25, RAYWHITE);
@@ -817,6 +868,26 @@ void RenderGame(GameData* defaultData)
 		sprintf(playerLives, "LIVES: %d", defaultData->lives);
 		DrawText(playerLives, 80, 50, 25, RAYWHITE);
 
+		// Add win target display to show player their progress
+		if (defaultData->state == GAME_ACTIVE)
+		{
+			char targetText[50];
+			sprintf(targetText, "TARGET: %d", defaultData->winScore);
+			DrawText(targetText, GetScreenWidth() - MeasureText(targetText, 25) - 20, 50, 25, YELLOW);
+
+			// Draw progress bar
+			float progressRatio = (float)defaultData->score / defaultData->winScore;
+			progressRatio = progressRatio > 1.0f ? 1.0f : progressRatio; // Cap at 100%
+
+			int barWidth = 200;
+			int barHeight = 20;
+			int barX = GetScreenWidth() - barWidth - 20;
+			int barY = 80;
+
+			DrawRectangle(barX, barY, barWidth, barHeight, DARKGRAY);
+			DrawRectangle(barX, barY, (int)(barWidth * progressRatio), barHeight, YELLOW);
+			DrawRectangleLines(barX, barY, barWidth, barHeight, WHITE);
+		}
 
 	}
 }
