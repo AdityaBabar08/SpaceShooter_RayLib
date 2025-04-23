@@ -32,6 +32,10 @@ struct Player
 	float playerRotation;
 };
 
+Texture2D playerIcon;
+Texture2D crossIcon;
+
+
 struct Meteor
 {
 	bool isActive;
@@ -302,6 +306,9 @@ void InitGame(GameData* defaultData)
 	defaultData->isInvincible = false;
 	defaultData->invincibilityTimer = 0.0f;
 	defaultData->score = 0;
+
+	playerIcon = LoadTexture(RESOURCES_PATH "playerLife3_red.png");
+	crossIcon = LoadTexture(RESOURCES_PATH "numeralX.png");
 }
 
 void UpdateGame(GameData* defaultData, float deltaTime)
@@ -802,6 +809,10 @@ void RenderGame(GameData* defaultData)
 		sprintf(playerScore, "SCORE: %d", defaultData->score);
 		DrawText(playerScore, 80, 80, 25, RAYWHITE);
 
+
+		DrawTextureRec(playerIcon, { 0,0,(float)playerIcon.width,(float)playerIcon.height }, { 80,50 }, RAYWHITE);
+		DrawTextureRec(crossIcon, { 0,0,(float)crossIcon.width,(float)crossIcon.height }, { 90 + (float)playerIcon.width ,50 + ((float)playerIcon.height / 2 -(float)crossIcon.height / 2)}, RAYWHITE);
+
 		char playerLives[20];
 		sprintf(playerLives, "LIVES: %d", defaultData->lives);
 		DrawText(playerLives, 80, 50, 25, RAYWHITE);
@@ -820,6 +831,8 @@ void EndGame(GameData* defaultData)
 	UnloadTexture(meteorTexture[TINY]);
 	UnloadTexture(meteorTexture[MID]);
 	UnloadTexture(meteorTexture[LARGE]);
+
+	UnloadTexture(playerIcon);
 
 	UnloadTexture(defaultData->background.bgTexture);
 }
